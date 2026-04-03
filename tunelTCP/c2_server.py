@@ -96,7 +96,7 @@ while True: # 🛡️ DETECCIÓN: Conexión TCP de LARGA DURACIÓN (> 5 minutos)
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ ENTRADA DE COMANDOS - HUELLA FORENSE #3                             │
     # └─────────────────────────────────────────────────────────────────────┘
-    command = input("shell»»")
+    command = input("shell »» " )
         # input()     → El atacante escribe comandos manualmente
         # shell»»     → Prompt personalizado (firma detectable)
         #
