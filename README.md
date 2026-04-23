@@ -1,0 +1,1 @@
+Esta version esta orientada a objetos, sera mas facil manejar

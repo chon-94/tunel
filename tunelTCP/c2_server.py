@@ -82,7 +82,21 @@ class Listener:
             # 🛡️ DETECCIÓN #3: Comandos en TEXTO PLANO visibles en red
             # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -X
 
-        return self.connection.recv(1024)
+        # Recibir TODA la respuesta, no solo 1024 bytes
+        result = b""
+        self.connection.settimeout(2)  # ← Timeout para saber cuándo terminar
+        
+        try:
+            while True:
+                chunk = self.connection.recv(4096)  # ← Buffer más grande
+                if not chunk:  # ← No hay más datos
+                    break
+                result += chunk
+        except socket.timeout:
+            pass  # ← Terminó de recibir
+        
+        return result
+        # Recibir TODA la respuesta, no solo 1024 bytes
 
     def run(self): # │ BUCLE PRINCIPAL - CONTROL REMOTO ACTIVO  
 
