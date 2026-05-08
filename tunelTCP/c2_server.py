@@ -20,7 +20,7 @@ class Listener:
     
     def ejecutarRemoto(self, command):
         self.connection.send(command.encode('utf-8'))
-        return self.connection.recv(1024)
+        return self.connection.recv(1024000)
     
     def run(self):
         while True:
