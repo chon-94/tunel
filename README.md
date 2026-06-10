@@ -13,3 +13,30 @@ puedo mostar 1k o 1mb  todo esta en colocar 1024 o 1024000, al parecer 1mb es me
         print(conexion.decode('utf-8', errors='ignore'))
         #self.connection, address = listener.accept()
         #print("[+] Tenemos una conexion de " + str(address))
+
+no recuerdo que estab haciendo allaa arriba 
+
+## Librerias
+
+hay muchas librerias, una de las ultimas que acabo de conocer es la ssl
+esta al parece hace que mi codigo sea mas dificil de detectar, es como
+añadirle una capa extra de seguridad es cosa de probar
+
+🔧 PASO 1: GENERAR CERTIFICADOS (5 MINUTOS):
+
+# En Manjaro, en la carpeta del proyecto:
+$ cd ~/Documentos/GitHub/tunel/tunelTCP/
+
+# Generar certificados:
+$ openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=192.168.1.33"
+
+# Verificar:
+$ ls -lh *.pem
+# cert.pem  key.pem
+
+# Permisos seguros:
+$ chmod 600 key.pem
+$ chmod 644 cert.pem
+
+# Agregar a .gitignore (IMPORTANTE):
+$ echo "*.pem" >> .gitignore
